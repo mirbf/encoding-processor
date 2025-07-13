@@ -55,3 +55,6 @@ coverage.html
 
 # Benchmark results
 *.bench
+
+# Claude Code settings
+.claude/
