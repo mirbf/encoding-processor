@@ -39,6 +39,11 @@ func (p *defaultProcessor) DetectBestEncoding(data []byte) (string, error) {
 	return p.detector.DetectBestEncoding(data)
 }
 
+// SmartDetectEncoding 智能编码检测
+func (p *defaultProcessor) SmartDetectEncoding(data []byte) (*DetectionResult, error) {
+	return p.detector.SmartDetectEncoding(data)
+}
+
 // Convert 在指定编码之间转换
 func (p *defaultProcessor) Convert(data []byte, from, to string) ([]byte, error) {
 	return p.converter.Convert(data, from, to)

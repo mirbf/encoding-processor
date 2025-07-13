@@ -16,6 +16,9 @@ type Detector interface {
 
 	// DetectBestEncoding 检测最可能的编码格式（简化版本）
 	DetectBestEncoding(data []byte) (string, error)
+
+	// SmartDetectEncoding 智能编码检测（增强版）
+	SmartDetectEncoding(data []byte) (*DetectionResult, error)
 }
 
 // Converter 编码转换器接口

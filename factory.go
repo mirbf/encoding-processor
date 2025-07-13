@@ -168,6 +168,50 @@ func NewTolerantMode() Processor {
 	return NewProcessor(config)
 }
 
+// NewSmartProcessor 创建使用智能检测的处理器
+func NewSmartProcessor(config ...*ProcessorConfig) Processor {
+	var cfg *ProcessorConfig
+	if len(config) > 0 && config[0] != nil {
+		cfg = config[0]
+	} else {
+		cfg = GetDefaultProcessorConfig()
+		// 为智能模式调整配置
+		cfg.DetectorConfig.MinConfidence = 0.05 // 更低的置信度阈值
+		cfg.DetectorConfig.PreferredEncodings = []string{
+			EncodingGBK, EncodingGB18030, EncodingBIG5, EncodingUTF8,
+		}
+	}
+	
+	return &defaultProcessor{
+		config:    cfg,
+		detector:  NewDetector(cfg.DetectorConfig),
+		converter: NewConverter(cfg.ConverterConfig),
+	}
+}
+
+// NewZipFileProcessor 专门用于ZIP文件名检测的处理器
+func NewZipFileProcessor() Processor {
+	config := GetDefaultProcessorConfig()
+	
+	// ZIP文件名特殊配置
+	config.DetectorConfig.MinConfidence = 0.05
+	config.DetectorConfig.SampleSize = 1024 // ZIP文件名通常很短
+	config.DetectorConfig.PreferredEncodings = []string{
+		EncodingGBK,    // 中文ZIP最常用
+		EncodingGB18030,
+		EncodingBIG5,
+		EncodingUTF8,
+		EncodingShiftJIS, // 日文
+		EncodingEUCKR,    // 韩文
+	}
+	config.DetectorConfig.EnableCache = false // ZIP文件名不需要缓存
+	
+	config.ConverterConfig.StrictMode = false
+	config.ConverterConfig.InvalidCharReplacement = "?"
+	
+	return NewSmartProcessor(config)
+}
+
 // 默认日志记录器实现
 type defaultLogger struct{}
 
