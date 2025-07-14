@@ -59,7 +59,7 @@ func main() {
 
 ```go
 // 创建文件处理器
-fileProcessor := encoding.NewDefaultFile()
+fileProcessor := encoding.NewFileProcessor(encoding.GetDefaultProcessorConfig())
 
 // 配置处理选项
 options := &encoding.FileProcessOptions{
@@ -138,7 +138,6 @@ processor := encoding.NewWithConfig(detCfg, convCfg)  // 完全自定义配置
 
 // 专用处理器
 streamProcessor := encoding.NewDefaultStream()        // 流处理器
-fileProcessor := encoding.NewDefaultFile()            // 文件处理器
 
 // 带监控
 processor, metrics := encoding.NewDefaultWithMetrics() // 带性能监控

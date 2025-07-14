@@ -231,9 +231,9 @@ func TestStreamProcessor(t *testing.T) {
 }
 
 func TestFileProcessor(t *testing.T) {
-	fileProcessor := NewDefaultFile()
+	fileProcessor := NewFileProcessor(GetDefaultProcessorConfig())
 	if fileProcessor == nil {
-		t.Error("NewDefaultFile returned nil")
+		t.Error("NewFileProcessor returned nil")
 	}
 
 	// Test that the interface is implemented correctly

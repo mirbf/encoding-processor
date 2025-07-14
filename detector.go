@@ -74,19 +74,9 @@ func (d *defaultDetector) SmartDetectEncoding(data []byte) (*DetectionResult, er
 		}
 	}
 
-	// 1. 使用传统方法检测
-	traditionalResult, _ := d.DetectEncoding(data)
-	
-	// 2. 获取所有候选编码
-	candidates := d.getAllCandidates(data)
-	
-	// 3. 对候选编码进行评分
-	scoredCandidates := d.scoreCandidates(data, candidates)
-	
-	// 4. 选择最佳结果
-	bestCandidate := d.selectBestCandidate(scoredCandidates, traditionalResult)
-	
-	if bestCandidate == nil {
+	// 使用改进的检测策略
+	result := d.detectEncodingAccurately(data)
+	if result == nil {
 		return nil, &EncodingError{
 			Op:       OperationDetect,
 			Encoding: "unknown",
@@ -94,15 +84,125 @@ func (d *defaultDetector) SmartDetectEncoding(data []byte) (*DetectionResult, er
 		}
 	}
 
-	return &DetectionResult{
-		Encoding:   bestCandidate.Encoding,
-		Confidence: bestCandidate.Confidence,
-		Details: map[string]interface{}{
-			"method": bestCandidate.Method,
-			"score": bestCandidate.Score,
-			"converted_text": bestCandidate.ConvertedText,
-		},
-	}, nil
+	return result, nil
+}
+
+// detectEncodingAccurately 使用多种策略精确检测编码 - 基于内容分析
+func (d *defaultDetector) detectEncodingAccurately(data []byte) *DetectionResult {
+	// 1. 检查BOM
+	if bomResult := d.detectBOM(data); bomResult != nil {
+		return bomResult
+	}
+	
+	// 2. 特殊编码检测 (在ASCII检测之前)
+	if specialResult := d.detectSpecialEncodings(data); specialResult != nil {
+		return specialResult
+	}
+	
+	// 3. 检查是否为纯ASCII
+	if d.isASCII(data) {
+		return &DetectionResult{
+			Encoding:   "ASCII",
+			Confidence: 0.95,
+			Details: map[string]interface{}{
+				"method": "ascii_detection",
+			},
+		}
+	}
+	
+	// 4. 检查UTF-8有效性
+	if utf8.Valid(data) {
+		return &DetectionResult{
+			Encoding:   EncodingUTF8,
+			Confidence: 0.99,
+			Details: map[string]interface{}{
+				"method": "utf8_validation",
+			},
+		}
+	}
+	
+	// 5. 使用chardet库检测
+	detector := chardet.NewTextDetector()
+	results, err := detector.DetectAll(data)
+	if err == nil && len(results) > 0 {
+		// 找最高置信度的结果
+		bestResult := results[0]
+		for _, result := range results {
+			if result.Confidence > bestResult.Confidence {
+				bestResult = result
+			}
+		}
+		
+		encoding := d.normalizeEncodingName(bestResult.Charset)
+		return &DetectionResult{
+			Encoding:   encoding,
+			Confidence: float64(bestResult.Confidence) / 100.0,
+			Details: map[string]interface{}{
+				"method":  "chardet",
+				"charset": bestResult.Charset,
+			},
+		}
+	}
+	
+	// 6. 使用传统检测作为最后手段
+	traditionalResult, _ := d.DetectEncoding(data)
+	if traditionalResult != nil {
+		return traditionalResult
+	}
+	
+	return nil
+}
+
+// isASCII 检查是否为纯ASCII
+func (d *defaultDetector) isASCII(data []byte) bool {
+	for _, b := range data {
+		if b > 127 {
+			return false
+		}
+	}
+	return true
+}
+
+// detectSpecialEncodings 检测特殊编码 - 仅基于内容
+func (d *defaultDetector) detectSpecialEncodings(data []byte) *DetectionResult {
+	dataStr := string(data)
+	
+	// HZ编码检测 - 查找HZ特征标记
+	if d.containsString(dataStr, "~{") && d.containsString(dataStr, "~}") {
+		return &DetectionResult{
+			Encoding:   "HZ",
+			Confidence: 0.85,
+			Details: map[string]interface{}{
+				"method": "hz_pattern_detection",
+			},
+		}
+	}
+	
+	return nil
+}
+
+// containsString 检查字符串是否包含子串
+func (d *defaultDetector) containsString(s, substr string) bool {
+	return len(s) >= len(substr) && 
+		   (len(substr) == 0 || 
+		    d.indexOf(s, substr) >= 0)
+}
+
+// indexOf 查找子串在字符串中的位置
+func (d *defaultDetector) indexOf(s, substr string) int {
+	if len(substr) == 0 {
+		return 0
+	}
+	if len(substr) > len(s) {
+		return -1
+	}
+	
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }
 
 // DetectEncoding 检测数据的编码格式
@@ -380,13 +480,18 @@ func (d *defaultDetector) normalizeEncodingName(charset string) string {
 		"UTF-32":       EncodingUTF32,
 		"UTF-32LE":     EncodingUTF32LE,
 		"UTF-32BE":     EncodingUTF32BE,
-		"GB2312":       EncodingGBK, // 将 GB2312 映射为 GBK
+		"GB2312":       "GB2312", // 保持GB2312独立
 		"GBK":          EncodingGBK,
 		"GB18030":      EncodingGB18030,
+		"GB-18030":     EncodingGB18030, // 添加变体支持
 		"Big5":         EncodingBIG5,
+		"BIG5":         EncodingBIG5,
 		"Shift_JIS":    EncodingShiftJIS,
 		"EUC-JP":       EncodingEUCJP,
 		"EUC-KR":       EncodingEUCKR,
+		"EUC-CN":       "EUC-CN", // 添加EUC-CN支持
+		"HZ":           "HZ",     // 添加HZ编码支持
+		"HZ-GB-2312":   "HZ",
 		"ISO-8859-1":   EncodingISO88591,
 		"windows-1252": EncodingWindows1252,
 		"KOI8-R":       EncodingKOI8R,

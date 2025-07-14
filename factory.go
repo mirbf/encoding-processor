@@ -25,11 +25,6 @@ func NewDefaultStream() StreamProcessor {
 	return NewStreamProcessor(GetDefaultProcessorConfig())
 }
 
-// NewDefaultFile 创建默认文件处理器
-func NewDefaultFile() FileProcessor {
-	return NewFileProcessor(GetDefaultProcessorConfig())
-}
-
 // NewWithLogger 创建带自定义日志的处理器
 func NewWithLogger(logger Logger) Processor {
 	config := GetDefaultProcessorConfig()
